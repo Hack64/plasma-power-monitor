@@ -35,12 +35,13 @@ Item {
 
     Plasmoid.preferredRepresentation: Plasmoid.fullRepresentation
 
-    property string batPath: getBatPath()
-    property bool powerNow: checkPowerNow(batPath)
-    property double power: getPower(batPath)
+    property variant paths: getBatPath()
+    property bool powerNow: checkPowerNow(paths)
+    property double power: getPower(paths)
 
     //this function tries to find the exact path to battery file
     function getBatPath() {
+        var arr=[];
         for(var i=0; i<4; i++) {
             var path = "/sys/class/power_supply/BAT" + i + "/voltage_now";
             var req = new XMLHttpRequest();
@@ -48,67 +49,80 @@ Item {
             req.send(null)
             if(req.responseText != "") {
                 //console.log(path)
-                return "/sys/class/power_supply/BAT" + i;
+                arr.push("/sys/class/power_supply/BAT" + i);
             }
         }
-        return ""
+        return arr
     }
 
     //this function checks if the "/sys/class/power_supply/BAT[i]/power_now" file exists
-    function checkPowerNow(fileUrl) {
-        if(fileUrl == "") {
+    function checkPowerNow(fileUrls) {
+        if(fileUrls == "") {
             return false
         }
+        var idx;
+        for(idx in fileUrls){
+            var path = fileUrls[idx] + "/power_now"
+            var req = new XMLHttpRequest();
 
-        var path = fileUrl + "/power_now"
-        var req = new XMLHttpRequest();
+            req.open("GET", path, false);
+            req.send(null);
 
-        req.open("GET", path, false);
-        req.send(null);
-
-        if(req.responseText == "") {
-            return false
-        }
-        else {
-            return true
+            if(req.responseText == "") {
+                return false
+            }
+            else {
+                return true
+            }
         }
     }
 
     //Returns power usage in Watts, rounded off to 1 decimal.
-    function getPower(fileUrl) {
+    function getPower(fileUrls) {
         //if there is no BAT[i] file at all
-        if(fileUrl == "") {
+        if(fileUrls == "") {
             return "0.0"
         }
 
         //in case the "power_now" file exists:
         if( main.powerNow == true) {
-            var path = fileUrl + "/power_now"
-            var req = new XMLHttpRequest();
-            req.open("GET", path, false);
-            req.send(null);
+            var idx;
+            for(idx in fileUrls){
+                var path = fileUrls[idx] + "/power_now"
+                var req = new XMLHttpRequest();
+                req.open("GET", path, false);
+                req.send(null);
 
-            var power = parseInt(req.responseText) / 1000000;
-            return(Math.round(power*10)/10);
+                var power = parseInt(req.responseText) / 1000000;
+                if(power > 0){
+                    return(Math.round(power*10)/10);
+                }
+            }
+
         }
 
         //if the power_now file doesn't exist, we collect voltage
         //and current and manually calculate power consumption
-        var curUrl = fileUrl + "/current_now"
-        var voltUrl = fileUrl + "/voltage_now"
+        for(var idx in fileUrls){
+            var curUrl = fileUrls[idx] + "/current_now"
+            var voltUrl = fileUrls[idx] + "/voltage_now"
 
-        var curReq = new XMLHttpRequest();
-        var voltReq = new XMLHttpRequest();
+            var curReq = new XMLHttpRequest();
+            var voltReq = new XMLHttpRequest();
 
-        curReq.open("GET", curUrl, false);
-        voltReq.open("GET", voltUrl, false);
+            curReq.open("GET", curUrl, false);
+            voltReq.open("GET", voltUrl, false);
 
-        curReq.send(null);
-        voltReq.send(null);
+            curReq.send(null);
+            voltReq.send(null);
 
-        var power = (parseInt(curReq.responseText) * parseInt(voltReq.responseText))/1000000000000;
-        //console.log(power.toFixed(1));
-        return Math.round(power*10)/10; //toFixed() is apparently slow, so we use this way
+            var power = (parseInt(curReq.responseText) * parseInt(voltReq.responseText))/1000000000000;
+            //console.log(power.toFixed(1));
+            if (power > 0){
+                return Math.round(power*10)/10; //toFixed() is apparently slow, so we use this way
+            }
+        }
+
     }
 
     PlasmaComponents.Label {
@@ -142,7 +156,7 @@ Item {
         running: true
         repeat: true
         onTriggered: {
-            main.power = getPower(main.batPath)
+            main.power = getPower(main.paths)
             if(Number.isInteger(main.power)) {
                 //When power has 0 decimal places, it removes the decimal
                 //point inspite of power variable being double. This momentarily

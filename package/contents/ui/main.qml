@@ -38,6 +38,20 @@ Item {
     property variant paths: getBatPath()
     property bool powerNow: checkPowerNow(paths)
     property double power: getPower(paths)
+    property bool inCharge: getChargingStatus()
+
+    //this function checks whether the device is being charged or not
+    function getChargingStatus(){
+        var node = "/sys/class/power_supply/AC/online";
+        var req = new XMLHttpRequest();
+        req.open("GET", node, false);
+        req.send(null);
+        if(req.responseText == 1){
+            return true;
+        } else {
+            return false;
+        }
+    }
 
     //this function tries to find the exact path to battery file
     function getBatPath() {
@@ -137,11 +151,15 @@ Item {
         horizontalAlignment: Text.AlignHCenter
 
         text: {
-            if(Number.isInteger(main.power)) {
-                return(main.power + ".0 W");
-            }
-            else {
-                return(main.power + " W");
+            if(main.inCharge == false){
+                if(Number.isInteger(main.power)) {
+                    return(main.power + ".0 W");
+                }
+                else {
+                    return(main.power + " W");
+                }
+            } else {
+                return "⚡";
             }
         }
 
@@ -156,17 +174,23 @@ Item {
         running: true
         repeat: true
         onTriggered: {
-            main.power = getPower(main.paths)
-            if(Number.isInteger(main.power)) {
-                //When power has 0 decimal places, it removes the decimal
-                //point inspite of power variable being double. This momentarily
-                //makes the font size bigger due to extra available space which
-                //does not look good. So we do this simple hack of manually adding 
-                //a .0 to number
-                display.text = main.power + ".0 W";
-            }
-            else {
-                display.text = main.power + " W"
+            main.inCharge = getChargingStatus();
+            if (main.inCharge == false){
+                main.power = getPower(main.paths)
+
+                if(Number.isInteger(main.power)) {
+                    //When power has 0 decimal places, it removes the decimal
+                    //point inspite of power variable being double. This momentarily
+                    //makes the font size bigger due to extra available space which
+                    //does not look good. So we do this simple hack of manually adding
+                    //a .0 to number
+                    display.text = main.power + ".0 W";
+                }
+                else {
+                    display.text = main.power + " W"
+                }
+            } else {
+                display.text = "⚡";
             }
         }
     }

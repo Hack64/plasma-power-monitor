@@ -26,12 +26,12 @@ Item {
     anchors.fill: parent
     
     //height and width, when the widget is placed in desktop
-    width: 80
-    height: 20
+    width: 60
+    height: 15
 
     //height and width, when widget is placed in plasma panel
-    Layout.preferredWidth: 80 * units.devicePixelRatio
-    Layout.preferredHeight: 20 * units.devicePixelRatio
+    Layout.preferredWidth: 60 * units.devicePixelRatio
+    Layout.preferredHeight: 15 * units.devicePixelRatio
 
     Plasmoid.preferredRepresentation: Plasmoid.fullRepresentation
 
